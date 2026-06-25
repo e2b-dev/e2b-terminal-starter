@@ -59,6 +59,7 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(
     transcriptRef.current = INITIAL_TEXT;
     pendingWritesRef.current = "";
     terminalRef.current?.reset();
+    terminalRef.current?.clear();
     terminalRef.current?.write(INITIAL_TEXT);
   }
 
