@@ -46,6 +46,8 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(
   const transcriptRef = useRef(INITIAL_TEXT);
 
   function write(text: string) {
+    if (!text) return;
+
     transcriptRef.current += text;
 
     if (terminalRef.current) {

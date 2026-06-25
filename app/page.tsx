@@ -334,7 +334,8 @@ export default function Home() {
       if (isViewingIssuedConversation()) {
         setActiveConversationId(data.conversationId || "");
         setActiveSandboxId(data.sandboxId || "");
-        terminalRef.current?.write(commandOutput(command, data).replace(`\r\n$ ${command}\r\n`, ""));
+        const output = commandOutput(command, data).replace(`\r\n$ ${command}\r\n`, "");
+        terminalRef.current?.write(output);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

@@ -1,4 +1,4 @@
-import Sandbox, { SandboxNotFoundError } from "e2b";
+import Sandbox, { SandboxNotFoundError, type CommandResult } from "e2b";
 import { NextResponse } from "next/server";
 import {
   attachSandbox,
@@ -23,6 +23,10 @@ type CommandBody = {
 type SandboxOptions = Parameters<typeof Sandbox.create>[1];
 
 const conversationLocks = new Map<string, Promise<unknown>>();
+const PTY_START_MARKER = "__E2B_TERMINAL_START__";
+const ANSI_PATTERN =
+  // eslint-disable-next-line no-control-regex
+  /[\u001b\u009b][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[a-zA-Z\d]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;
 
 function jsonError(message: string, status = 400, details: Record<string, unknown> = {}) {
   return NextResponse.json({ error: message, ...details }, { status });
@@ -31,6 +35,74 @@ function jsonError(message: string, status = 400, details: Record<string, unknow
 function getTimeoutMs() {
   const timeout = Number(process.env.E2B_TIMEOUT_MS);
   return Number.isFinite(timeout) && timeout > 0 ? timeout : 300_000;
+}
+
+function shellQuote(value: string) {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function cleanPtyOutput(output: string) {
+  const markerIndex = output.indexOf(PTY_START_MARKER);
+  const commandOutput =
+    markerIndex >= 0 ? output.slice(markerIndex + PTY_START_MARKER.length) : output;
+  const lines = commandOutput
+    .replace(ANSI_PATTERN, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .filter((line) => !/^[^@\s]+@[^:\s]+:.*[$#]\s*$/.test(line.trim()))
+    .filter((line) => line.trim() !== "logout");
+
+  while (lines[0]?.trim() === "") lines.shift();
+  while (lines.at(-1)?.trim() === "") lines.pop();
+
+  return lines.length ? `${lines.join("\n")}\n` : "";
+}
+
+async function runPtyCommand(
+  sandbox: Awaited<ReturnType<typeof Sandbox.create>>,
+  command: string,
+): Promise<CommandResult> {
+  const decoder = new TextDecoder();
+  let ptyOutput = "";
+  const handle = await sandbox.pty.create({
+    cols: 120,
+    rows: 32,
+    timeoutMs: 60_000,
+    onData(data) {
+      ptyOutput += decoder.decode(data, { stream: true });
+    },
+  });
+
+  await sandbox.pty.sendInput(
+    handle.pid,
+    new TextEncoder().encode(
+      `stty -echo\nprintf '\\n${PTY_START_MARKER}\\n'\nexec bash -lc ${shellQuote(command)}\n`,
+    ),
+  );
+
+  try {
+    const result = await handle.wait();
+    ptyOutput += decoder.decode();
+    return {
+      ...result,
+      stdout: cleanPtyOutput(ptyOutput),
+      stderr: result.stderr,
+    };
+  } catch (error) {
+    ptyOutput += decoder.decode();
+    if (error instanceof Error && "exitCode" in error) {
+      const exitCode = Number((error as { exitCode?: unknown }).exitCode);
+      return {
+        exitCode: Number.isFinite(exitCode) ? exitCode : 1,
+        error: error.message,
+        stdout: cleanPtyOutput(ptyOutput),
+        stderr: "stderr" in error ? String((error as { stderr?: unknown }).stderr || "") : "",
+      };
+    }
+
+    throw error;
+  }
 }
 
 async function withConversationLock<T>(lockKey: string, run: () => Promise<T>) {
@@ -67,9 +139,7 @@ function runFirstCommand(
       sandbox = await Sandbox.create(template, sandboxOptions);
       attachSandbox(conversation.id, sandbox.sandboxId, template);
       sandboxAttached = true;
-      const result = await sandbox.commands.run(command, {
-        timeoutMs: 60_000,
-      });
+      const result = await runPtyCommand(sandbox, command);
       const messages = recordCommand({
         conversationId: conversation.id,
         command,
@@ -184,9 +254,7 @@ export async function POST(request: Request) {
 
     return await withConversationLock(conversation.id, async () => {
       const sandbox = await getOrCreateSandbox(conversation.id, template, sandboxOptions);
-      const result = await sandbox.commands.run(command, {
-        timeoutMs: 60_000,
-      });
+      const result = await runPtyCommand(sandbox, command);
       const messages = recordCommand({
         conversationId: conversation.id,
         command,
