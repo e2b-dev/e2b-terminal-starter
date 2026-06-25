@@ -126,13 +126,19 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(
         });
         fitAddon = new FitAddon();
 
-        terminalRef.current = terminal;
         terminal.loadAddon(fitAddon);
         terminal.open(container);
         fitAddon.fit();
         terminal.blur();
-        terminal.write(transcriptRef.current);
+
+        const initialTranscript = transcriptRef.current;
         pendingWritesRef.current = "";
+        terminal.write(initialTranscript);
+        terminalRef.current = terminal;
+        if (pendingWritesRef.current) {
+          terminal.write(pendingWritesRef.current);
+          pendingWritesRef.current = "";
+        }
       });
     });
 
