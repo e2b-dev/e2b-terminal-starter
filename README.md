@@ -35,7 +35,6 @@ E2B_API_KEY=e2b_...
 Optional local overrides:
 
 ```bash
-E2B_API_URL=https://api.e2b.dev
 E2B_TEMPLATE=base
 E2B_TIMEOUT_MS=300000
 APP_DATABASE_PATH=./data/app.db

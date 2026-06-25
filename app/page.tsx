@@ -6,7 +6,6 @@ import TerminalPanel, { TerminalPanelHandle } from "./terminal-panel";
 type Config = {
   hasE2bApiKey: boolean;
   template: string;
-  apiUrl: string;
 };
 
 type User = {
@@ -118,7 +117,6 @@ export default function Home() {
         setConfig({
           hasE2bApiKey: false,
           template: "base",
-          apiUrl: "https://api.e2b.dev",
         }),
       );
   }, []);
