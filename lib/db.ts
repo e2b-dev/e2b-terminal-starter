@@ -386,8 +386,8 @@ export function markSandboxStatus(
   status: SandboxRow["status"],
 ) {
   getDatabase()
-    .prepare("UPDATE sandboxes SET status = ?, last_used_at = ? WHERE conversation_id = ?")
-    .run(status, now(), conversationId);
+    .prepare("UPDATE sandboxes SET status = ? WHERE conversation_id = ?")
+    .run(status, conversationId);
 }
 
 export function recordCommand(params: {

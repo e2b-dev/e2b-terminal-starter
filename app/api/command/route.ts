@@ -33,24 +33,66 @@ function getTimeoutMs() {
   return Number.isFinite(timeout) && timeout > 0 ? timeout : 300_000;
 }
 
-async function withConversationLock<T>(conversationId: string, run: () => Promise<T>) {
-  const previous = conversationLocks.get(conversationId) || Promise.resolve();
+async function withConversationLock<T>(lockKey: string, run: () => Promise<T>) {
+  const previous = conversationLocks.get(lockKey) || Promise.resolve();
   let release!: () => void;
   const current = new Promise<void>((resolve) => {
     release = resolve;
   });
   const next = previous.then(() => current, () => current);
-  conversationLocks.set(conversationId, next);
+  conversationLocks.set(lockKey, next);
 
   await previous.catch(() => undefined);
   try {
     return await run();
   } finally {
     release();
-    if (conversationLocks.get(conversationId) === next) {
-      conversationLocks.delete(conversationId);
+    if (conversationLocks.get(lockKey) === next) {
+      conversationLocks.delete(lockKey);
     }
   }
+}
+
+function runFirstCommand(
+  userId: string,
+  command: string,
+  template: string,
+  sandboxOptions: SandboxOptions,
+) {
+  return withConversationLock(`user:${userId}:new`, async () => {
+    const conversation = createConversation(userId);
+    let sandbox: Awaited<ReturnType<typeof Sandbox.create>> | undefined;
+    try {
+      sandbox = await Sandbox.create(template, sandboxOptions);
+      attachSandbox(conversation.id, sandbox.sandboxId, template);
+      const result = await sandbox.commands.run(command, {
+        timeoutMs: 60_000,
+      });
+      const messages = recordCommand({
+        conversationId: conversation.id,
+        command,
+        sandboxId: sandbox.sandboxId,
+        template,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      });
+
+      return NextResponse.json({
+        conversationId: conversation.id,
+        sandboxId: sandbox.sandboxId,
+        command,
+        result,
+        messages,
+      });
+    } catch (error) {
+      if (sandbox) {
+        await Sandbox.pause(sandbox.sandboxId).catch(() => undefined);
+      }
+      deleteConversation(conversation.id);
+      throw error;
+    }
+  });
 }
 
 async function getOrCreateSandbox(
@@ -120,38 +162,7 @@ export async function POST(request: Request) {
     const template = process.env.E2B_TEMPLATE || "base";
 
     if (!conversationId) {
-      const conversation = createConversation(userId);
-      let sandbox: Awaited<ReturnType<typeof Sandbox.create>> | undefined;
-      try {
-        sandbox = await Sandbox.create(template, sandboxOptions);
-        attachSandbox(conversation.id, sandbox.sandboxId, template);
-        const result = await sandbox.commands.run(command, {
-          timeoutMs: 60_000,
-        });
-        const messages = recordCommand({
-          conversationId: conversation.id,
-          command,
-          sandboxId: sandbox.sandboxId,
-          template,
-          exitCode: result.exitCode,
-          stdout: result.stdout,
-          stderr: result.stderr,
-        });
-
-        return NextResponse.json({
-          conversationId: conversation.id,
-          sandboxId: sandbox.sandboxId,
-          command,
-          result,
-          messages,
-        });
-      } catch (error) {
-        if (sandbox) {
-          await Sandbox.pause(sandbox.sandboxId).catch(() => undefined);
-        }
-        deleteConversation(conversation.id);
-        throw error;
-      }
+      return await runFirstCommand(userId, command, template, sandboxOptions);
     }
 
     const conversation = getConversation(conversationId);

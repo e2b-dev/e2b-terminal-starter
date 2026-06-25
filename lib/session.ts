@@ -7,7 +7,12 @@ const SESSION_COOKIE = "e2b_terminal_starter_user";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function sessionSecret() {
-  return process.env.APP_SESSION_SECRET || process.env.E2B_API_KEY || "local-dev-session-secret";
+  const secret = process.env.APP_SESSION_SECRET || process.env.E2B_API_KEY;
+  if (!secret) {
+    throw new Error("Missing APP_SESSION_SECRET or E2B_API_KEY for session signing.");
+  }
+
+  return secret;
 }
 
 function sign(value: string) {
