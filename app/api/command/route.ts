@@ -5,6 +5,7 @@ import {
   createConversation,
   getConversation,
   getSandboxForConversation,
+  markSandboxPaused,
   recordCommand,
   removeSandbox,
   touchSandbox,
@@ -23,8 +24,8 @@ type SandboxOptions = Parameters<typeof Sandbox.create>[1];
 
 const conversationLocks = new Map<string, Promise<unknown>>();
 
-function jsonError(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
+function jsonError(message: string, status = 400, details: Record<string, unknown> = {}) {
+  return NextResponse.json({ error: message, ...details }, { status });
 }
 
 function getTimeoutMs() {
@@ -87,10 +88,17 @@ function runFirstCommand(
         messages,
       });
     } catch (error) {
-      if (sandbox && !sandboxAttached) {
+      if (sandbox) {
         await Sandbox.pause(sandbox.sandboxId).catch(() => undefined);
+        if (sandboxAttached) {
+          markSandboxPaused(conversation.id);
+        }
       }
-      throw error;
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return jsonError(message, 500, {
+        conversationId: conversation.id,
+        sandboxId: sandbox?.sandboxId,
+      });
     }
   });
 }

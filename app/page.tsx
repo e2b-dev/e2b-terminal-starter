@@ -42,10 +42,10 @@ type Message = {
 };
 
 type CommandResponse = {
-  conversationId: string;
-  sandboxId: string;
-  command: string;
-  result: {
+  conversationId?: string;
+  sandboxId?: string;
+  command?: string;
+  result?: {
     exitCode: number;
     stdout: string;
     stderr: string;
@@ -58,6 +58,8 @@ const DEFAULT_COMMAND = "python3 --version && pwd";
 const DEFAULT_USER_NAME = "demo";
 
 function commandOutput(command: string, response: CommandResponse) {
+  if (!response.result) return "";
+
   const stdout = response.result.stdout.replace(/\n/g, "\r\n");
   const stderr = response.result.stderr.replace(/\n/g, "\r\n");
   const exitSummary =
@@ -309,11 +311,16 @@ export default function Home() {
       const data = (await response.json()) as CommandResponse;
 
       if (!response.ok) {
+        if (data.conversationId) {
+          setActiveConversationId(data.conversationId);
+          setActiveSandboxId(data.sandboxId || "");
+          await loadConversations(user.id, data.conversationId);
+        }
         throw new Error(data.error || "Command failed");
       }
 
-      setActiveConversationId(data.conversationId);
-      setActiveSandboxId(data.sandboxId);
+      setActiveConversationId(data.conversationId || "");
+      setActiveSandboxId(data.sandboxId || "");
       terminalRef.current?.write(commandOutput(command, data).replace(`\r\n$ ${command}\r\n`, ""));
       await loadConversations(user.id, data.conversationId);
     } catch (error) {
