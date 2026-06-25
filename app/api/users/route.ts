@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createUser, renameUser } from "@/lib/db";
-import { getSessionUser, setSessionUser } from "@/lib/session";
+import { upsertUser } from "@/lib/db";
+import { setSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -9,12 +9,7 @@ export async function POST(request: Request) {
   const name = typeof body.name === "string" ? body.name : "";
 
   try {
-    const sessionUser = await getSessionUser();
-    const user = sessionUser ? renameUser(sessionUser.id, name) : createUser(name);
-    if (!user) {
-      return NextResponse.json({ error: "Could not load user." }, { status: 404 });
-    }
-
+    const user = upsertUser(name);
     const response = NextResponse.json({ user });
     setSessionUser(response, user.id);
     return response;
