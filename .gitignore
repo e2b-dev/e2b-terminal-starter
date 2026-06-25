@@ -1,8 +1,15 @@
 .env
 .env*.local
+.stripe
+.stripe/
+.stripe-projects
+.stripe-projects/
+stripe-projects.local.*
 .next
 node_modules
 dist
 coverage
+tsconfig.tsbuildinfo
+data
 .DS_Store
 *.log
