@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import {
   attachSandbox,
   createConversation,
-  deleteConversation,
   getConversation,
   getSandboxForConversation,
   recordCommand,
@@ -62,9 +61,11 @@ function runFirstCommand(
   return withConversationLock(`user:${userId}:new`, async () => {
     const conversation = createConversation(userId);
     let sandbox: Awaited<ReturnType<typeof Sandbox.create>> | undefined;
+    let sandboxAttached = false;
     try {
       sandbox = await Sandbox.create(template, sandboxOptions);
       attachSandbox(conversation.id, sandbox.sandboxId, template);
+      sandboxAttached = true;
       const result = await sandbox.commands.run(command, {
         timeoutMs: 60_000,
       });
@@ -86,10 +87,9 @@ function runFirstCommand(
         messages,
       });
     } catch (error) {
-      if (sandbox) {
+      if (sandbox && !sandboxAttached) {
         await Sandbox.pause(sandbox.sandboxId).catch(() => undefined);
       }
-      deleteConversation(conversation.id);
       throw error;
     }
   });
