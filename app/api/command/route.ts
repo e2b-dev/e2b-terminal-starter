@@ -1,4 +1,4 @@
-import Sandbox from "e2b";
+import Sandbox, { SandboxNotFoundError } from "e2b";
 import { NextResponse } from "next/server";
 import {
   attachSandbox,
@@ -113,7 +113,11 @@ async function getOrCreateSandbox(
     });
     touchSandbox(conversationId);
     return sandbox;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof SandboxNotFoundError)) {
+      throw error;
+    }
+
     await Sandbox.pause(persistedSandbox.e2b_sandbox_id).catch(() => undefined);
     removeSandbox(conversationId);
     const sandbox = await Sandbox.create(template, sandboxOptions);
