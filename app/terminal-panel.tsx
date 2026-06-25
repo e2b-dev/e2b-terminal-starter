@@ -7,7 +7,7 @@ export type TerminalPanelHandle = {
   reset: () => void;
 };
 
-const INITIAL_TEXT = "$ Ready. Run a command to create an E2B sandbox.\r\n";
+const INITIAL_TEXT = "$ Type a command below to run it.\r\n";
 
 type TerminalPanelProps = {
   sandboxId?: string;
