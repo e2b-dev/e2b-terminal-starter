@@ -110,6 +110,11 @@ export default function Home() {
   const [pausingConversationId, setPausingConversationId] = useState("");
   const terminalRef = useRef<TerminalPanelHandle>(null);
   const defaultUserLoadedRef = useRef(false);
+  const activeConversationIdRef = useRef("");
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
   useEffect(() => {
     fetch("/api/config")
@@ -295,6 +300,10 @@ export default function Home() {
     event.preventDefault();
     if (!user) return;
 
+    const issuedConversationId = activeConversationId;
+    const isViewingIssuedConversation = () =>
+      activeConversationIdRef.current === issuedConversationId;
+
     setIsRunning(true);
     terminalRef.current?.write(`\r\n$ ${command}\r\n`);
 
@@ -311,21 +320,27 @@ export default function Home() {
       const data = (await response.json()) as CommandResponse;
 
       if (!response.ok) {
+        await loadConversations(user.id, activeConversationIdRef.current);
         if (data.conversationId) {
-          setActiveConversationId(data.conversationId);
-          setActiveSandboxId(data.sandboxId || "");
-          await loadConversations(user.id, data.conversationId);
+          if (isViewingIssuedConversation()) {
+            setActiveConversationId(data.conversationId);
+            setActiveSandboxId(data.sandboxId || "");
+          }
         }
         throw new Error(data.error || "Command failed");
       }
 
-      setActiveConversationId(data.conversationId || "");
-      setActiveSandboxId(data.sandboxId || "");
-      terminalRef.current?.write(commandOutput(command, data).replace(`\r\n$ ${command}\r\n`, ""));
       await loadConversations(user.id, data.conversationId);
+      if (isViewingIssuedConversation()) {
+        setActiveConversationId(data.conversationId || "");
+        setActiveSandboxId(data.sandboxId || "");
+        terminalRef.current?.write(commandOutput(command, data).replace(`\r\n$ ${command}\r\n`, ""));
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      terminalRef.current?.write(`\r\nERROR: ${message}\r\n`);
+      if (isViewingIssuedConversation()) {
+        terminalRef.current?.write(`\r\nERROR: ${message}\r\n`);
+      }
     } finally {
       setIsRunning(false);
     }
@@ -358,7 +373,7 @@ export default function Home() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Name"
               />
-              <button className="compact-button" disabled={isLoading} type="submit">
+              <button className="compact-button" disabled={isLoading || isRunning} type="submit">
                 Change
               </button>
             </div>
@@ -384,7 +399,7 @@ export default function Home() {
               <span className="history-title">Conversations</span>
               <button
                 className="new-button"
-                disabled={!user || isLoading}
+                disabled={!user || isLoading || isRunning}
                 onClick={createNewConversation}
                 type="button"
               >
@@ -412,6 +427,7 @@ export default function Home() {
                   >
                     <button
                       className="history-select"
+                      disabled={isRunning}
                       onClick={() => selectConversation(conversation.id)}
                       type="button"
                     >
