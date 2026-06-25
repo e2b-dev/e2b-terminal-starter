@@ -299,6 +299,10 @@ export function createConversation(userId: string, title = "New conversation") {
   return conversation;
 }
 
+export function deleteConversation(conversationId: string) {
+  getDatabase().prepare("DELETE FROM conversations WHERE id = ?").run(conversationId);
+}
+
 export function getConversation(conversationId: string) {
   return getDatabase()
     .prepare("SELECT * FROM conversations WHERE id = ?")

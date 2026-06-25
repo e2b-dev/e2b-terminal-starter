@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   attachSandbox,
   createConversation,
+  deleteConversation,
   getConversation,
   getSandboxForConversation,
   recordCommand,
@@ -71,6 +72,7 @@ async function getOrCreateSandbox(
     touchSandbox(conversationId);
     return sandbox;
   } catch {
+    await Sandbox.pause(persistedSandbox.e2b_sandbox_id).catch(() => undefined);
     removeSandbox(conversationId);
     const sandbox = await Sandbox.create(template, sandboxOptions);
     attachSandbox(conversationId, sandbox.sandboxId, template);
@@ -118,36 +120,38 @@ export async function POST(request: Request) {
     const template = process.env.E2B_TEMPLATE || "base";
 
     if (!conversationId) {
-      const sandbox = await Sandbox.create(template, sandboxOptions);
-      let result: Awaited<ReturnType<typeof sandbox.commands.run>>;
+      const conversation = createConversation(userId);
+      let sandbox: Awaited<ReturnType<typeof Sandbox.create>> | undefined;
       try {
-        result = await sandbox.commands.run(command, {
+        sandbox = await Sandbox.create(template, sandboxOptions);
+        attachSandbox(conversation.id, sandbox.sandboxId, template);
+        const result = await sandbox.commands.run(command, {
           timeoutMs: 60_000,
         });
+        const messages = recordCommand({
+          conversationId: conversation.id,
+          command,
+          sandboxId: sandbox.sandboxId,
+          template,
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        });
+
+        return NextResponse.json({
+          conversationId: conversation.id,
+          sandboxId: sandbox.sandboxId,
+          command,
+          result,
+          messages,
+        });
       } catch (error) {
-        await Sandbox.pause(sandbox.sandboxId).catch(() => undefined);
+        if (sandbox) {
+          await Sandbox.pause(sandbox.sandboxId).catch(() => undefined);
+        }
+        deleteConversation(conversation.id);
         throw error;
       }
-
-      const conversation = createConversation(userId);
-      attachSandbox(conversation.id, sandbox.sandboxId, template);
-      const messages = recordCommand({
-        conversationId: conversation.id,
-        command,
-        sandboxId: sandbox.sandboxId,
-        template,
-        exitCode: result.exitCode,
-        stdout: result.stdout,
-        stderr: result.stderr,
-      });
-
-      return NextResponse.json({
-        conversationId: conversation.id,
-        sandboxId: sandbox.sandboxId,
-        command,
-        result,
-        messages,
-      });
     }
 
     const conversation = getConversation(conversationId);

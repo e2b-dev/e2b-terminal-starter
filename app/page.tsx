@@ -456,7 +456,7 @@ export default function Home() {
               />
               <button
                 className="run"
-                disabled={isRunning || !config?.hasE2bApiKey || !user}
+                disabled={isRunning || isLoading || !config?.hasE2bApiKey || !user}
                 type="submit"
               >
                 {isRunning ? "Running" : "Run"}
