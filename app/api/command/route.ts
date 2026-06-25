@@ -62,13 +62,14 @@ function cleanPtyOutput(output: string) {
 async function runPtyCommand(
   sandbox: Awaited<ReturnType<typeof Sandbox.create>>,
   command: string,
+  timeoutMs: number,
 ): Promise<CommandResult> {
   const decoder = new TextDecoder();
   let ptyOutput = "";
   const handle = await sandbox.pty.create({
     cols: 120,
     rows: 32,
-    timeoutMs: 60_000,
+    timeoutMs,
     onData(data) {
       ptyOutput += decoder.decode(data, { stream: true });
     },
@@ -139,7 +140,7 @@ function runFirstCommand(
       sandbox = await Sandbox.create(template, sandboxOptions);
       attachSandbox(conversation.id, sandbox.sandboxId, template);
       sandboxAttached = true;
-      const result = await runPtyCommand(sandbox, command);
+      const result = await runPtyCommand(sandbox, command, getTimeoutMs());
       const messages = recordCommand({
         conversationId: conversation.id,
         command,
@@ -254,7 +255,7 @@ export async function POST(request: Request) {
 
     return await withConversationLock(conversation.id, async () => {
       const sandbox = await getOrCreateSandbox(conversation.id, template, sandboxOptions);
-      const result = await runPtyCommand(sandbox, command);
+      const result = await runPtyCommand(sandbox, command, getTimeoutMs());
       const messages = recordCommand({
         conversationId: conversation.id,
         command,
