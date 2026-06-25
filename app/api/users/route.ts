@@ -4,28 +4,20 @@ import { setSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
-function isLocalRequest(request: Request) {
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = (forwardedHost || request.headers.get("host") || new URL(request.url).host)
-    .split(",")[0]
-    .trim();
-  const hostname = host.startsWith("[")
-    ? host.slice(1, host.indexOf("]"))
-    : host.split(":")[0];
+function localAuthEnabled() {
+  if (process.env.APP_ENABLE_LOCAL_AUTH) {
+    return process.env.APP_ENABLE_LOCAL_AUTH === "true";
+  }
 
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-}
-
-function localAuthEnabled(request: Request) {
-  return isLocalRequest(request) || process.env.APP_ENABLE_LOCAL_AUTH === "true";
+  return process.env.NODE_ENV !== "production";
 }
 
 export async function POST(request: Request) {
-  if (!localAuthEnabled(request)) {
+  if (!localAuthEnabled()) {
     return NextResponse.json(
       {
         error:
-          "Local starter auth is disabled outside localhost. Add real auth or set APP_ENABLE_LOCAL_AUTH=true to opt in.",
+          "Local starter auth is disabled. Add real auth or set APP_ENABLE_LOCAL_AUTH=true to opt in.",
       },
       { status: 403 },
     );

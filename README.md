@@ -65,7 +65,7 @@ APP_ENABLE_LOCAL_AUTH=
 
 `APP_SESSION_SECRET` signs the local starter session cookie. Set it in deployed or shared environments.
 
-`APP_ENABLE_LOCAL_AUTH=true` allows the starter's name-based auth flow outside localhost. Do not enable it for a shared deployment unless you understand that anyone who can reach the app can claim a local user name and run commands with your E2B API key.
+`APP_ENABLE_LOCAL_AUTH` controls the starter's name-based auth flow. It is enabled by default in development and disabled by default in production. Do not enable it for a shared deployment unless you understand that anyone who can reach the app can claim a local user name and run commands with your E2B API key.
 
 ## How It Works
 
@@ -84,4 +84,4 @@ Idle sandboxes pause automatically. The next command reconnects with E2B auto-re
 
 This repo intentionally uses a local name field instead of production authentication. It is enough to show user-owned conversations and sandbox mapping on your machine.
 
-The local auth endpoint is enabled on `localhost` by default and disabled elsewhere. Replace it with Clerk, Auth.js, or your own auth provider before shipping a real app.
+The local auth endpoint is enabled by default in development and disabled by default in production. Replace it with Clerk, Auth.js, or your own auth provider before shipping a real app.
