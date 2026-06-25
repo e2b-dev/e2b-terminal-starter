@@ -58,7 +58,7 @@ function getDatabase() {
   database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 
@@ -149,13 +149,72 @@ export function upsertUser(name: string) {
   return user;
 }
 
+export function createUser(name: string) {
+  const db = getDatabase();
+  const normalizedName = normalizeName(name);
+  if (!normalizedName) {
+    throw new Error("User name is required.");
+  }
+
+  const user: UserRow = {
+    id: randomUUID(),
+    name: normalizedName,
+    created_at: now(),
+  };
+
+  db.prepare("INSERT INTO users (id, name, created_at) VALUES (?, ?, ?)").run(
+    user.id,
+    user.name,
+    user.created_at,
+  );
+
+  return user;
+}
+
 export function getUser(userId: string) {
   return getDatabase()
     .prepare("SELECT * FROM users WHERE id = ?")
     .get(userId) as UserRow | undefined;
 }
 
+export function getUserByName(name: string) {
+  const normalizedName = normalizeName(name);
+  if (!normalizedName) return undefined;
+
+  return getDatabase()
+    .prepare("SELECT * FROM users WHERE name = ?")
+    .get(normalizedName) as UserRow | undefined;
+}
+
+export function renameUser(userId: string, name: string) {
+  const normalizedName = normalizeName(name);
+  if (!normalizedName) {
+    throw new Error("User name is required.");
+  }
+
+  const db = getDatabase();
+  db.prepare("UPDATE users SET name = ? WHERE id = ?").run(normalizedName, userId);
+  return getUser(userId);
+}
+
+export function reconcileExpiredSandboxes(maxIdleMs: number) {
+  if (!Number.isFinite(maxIdleMs) || maxIdleMs <= 0) return;
+
+  getDatabase()
+    .prepare(
+      `
+      UPDATE sandboxes
+      SET status = 'unknown'
+      WHERE status = 'running'
+        AND last_used_at <= ?
+    `,
+    )
+    .run(new Date(Date.now() - maxIdleMs).toISOString());
+}
+
 export function listConversations(userId: string) {
+  reconcileExpiredSandboxes(getSandboxIdleMs());
+
   return getDatabase()
     .prepare(
       `
@@ -186,6 +245,8 @@ export function listConversations(userId: string) {
 }
 
 export function countRunningSandboxes(userId: string) {
+  reconcileExpiredSandboxes(getSandboxIdleMs());
+
   const row = getDatabase()
     .prepare(
       `
@@ -198,6 +259,19 @@ export function countRunningSandboxes(userId: string) {
     .get(userId) as { count: number };
 
   return row.count;
+}
+
+export function listSandboxesForUser(userId: string) {
+  return getDatabase()
+    .prepare(
+      `
+      SELECT sandboxes.*
+      FROM sandboxes
+      INNER JOIN conversations ON conversations.id = sandboxes.conversation_id
+      WHERE conversations.user_id = ?
+    `,
+    )
+    .all(userId) as SandboxRow[];
 }
 
 export function createConversation(userId: string, title = "New conversation") {
@@ -243,6 +317,12 @@ export function getSandboxForConversation(conversationId: string) {
     .get(conversationId) as SandboxRow | undefined;
 }
 
+export function removeSandbox(conversationId: string) {
+  getDatabase()
+    .prepare("DELETE FROM sandboxes WHERE conversation_id = ?")
+    .run(conversationId);
+}
+
 export function attachSandbox(conversationId: string, e2bSandboxId: string, template: string) {
   const timestamp = now();
   const sandbox: SandboxRow = {
@@ -280,6 +360,11 @@ export function attachSandbox(conversationId: string, e2bSandboxId: string, temp
   return getSandboxForConversation(conversationId);
 }
 
+function getSandboxIdleMs() {
+  const timeout = Number(process.env.E2B_TIMEOUT_MS);
+  return Number.isFinite(timeout) && timeout > 0 ? timeout : 300_000;
+}
+
 export function touchSandbox(conversationId: string) {
   getDatabase()
     .prepare("UPDATE sandboxes SET status = 'running', last_used_at = ? WHERE conversation_id = ?")
@@ -290,6 +375,15 @@ export function markSandboxPaused(conversationId: string) {
   getDatabase()
     .prepare("UPDATE sandboxes SET status = 'paused', last_used_at = ? WHERE conversation_id = ?")
     .run(now(), conversationId);
+}
+
+export function markSandboxStatus(
+  conversationId: string,
+  status: SandboxRow["status"],
+) {
+  getDatabase()
+    .prepare("UPDATE sandboxes SET status = ?, last_used_at = ? WHERE conversation_id = ?")
+    .run(status, now(), conversationId);
 }
 
 export function recordCommand(params: {

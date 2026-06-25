@@ -156,7 +156,7 @@ export default function Home() {
     return nextConversations[0]?.id || "";
   }
 
-  async function selectConversation(conversationId: string) {
+  async function selectConversation(conversationId: string, ownerUserId = user?.id || "") {
     if (!conversationId) {
       setActiveConversationId("");
       setActiveSandboxId("");
@@ -169,7 +169,9 @@ export default function Home() {
     terminalRef.current?.reset();
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/conversations/${conversationId}`);
+      const response = await fetch(
+        `/api/conversations/${conversationId}?userId=${encodeURIComponent(ownerUserId)}`,
+      );
       const data = (await response.json()) as {
         conversation?: Conversation;
         sandbox?: SandboxRecord | null;
@@ -208,8 +210,9 @@ export default function Home() {
       }
 
       setUser(data.user);
+      setName(data.user.name);
       const activeId = await loadConversations(data.user.id);
-      await selectConversation(activeId);
+      await selectConversation(activeId, data.user.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       terminalRef.current?.write(`\r\nERROR: ${message}\r\n`);

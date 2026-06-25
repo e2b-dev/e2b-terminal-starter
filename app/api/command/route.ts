@@ -5,10 +5,11 @@ import {
   createConversation,
   getConversation,
   getSandboxForConversation,
-  getUser,
   recordCommand,
+  removeSandbox,
   touchSandbox,
 } from "@/lib/db";
+import { getSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,10 @@ type CommandBody = {
   conversationId?: unknown;
 };
 
+type SandboxOptions = Parameters<typeof Sandbox.create>[1];
+
+const conversationLocks = new Map<string, Promise<unknown>>();
+
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -25,6 +30,52 @@ function jsonError(message: string, status = 400) {
 function getTimeoutMs() {
   const timeout = Number(process.env.E2B_TIMEOUT_MS);
   return Number.isFinite(timeout) && timeout > 0 ? timeout : 300_000;
+}
+
+async function withConversationLock<T>(conversationId: string, run: () => Promise<T>) {
+  const previous = conversationLocks.get(conversationId) || Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const next = previous.then(() => current, () => current);
+  conversationLocks.set(conversationId, next);
+
+  await previous.catch(() => undefined);
+  try {
+    return await run();
+  } finally {
+    release();
+    if (conversationLocks.get(conversationId) === next) {
+      conversationLocks.delete(conversationId);
+    }
+  }
+}
+
+async function getOrCreateSandbox(
+  conversationId: string,
+  template: string,
+  sandboxOptions: SandboxOptions,
+) {
+  const persistedSandbox = getSandboxForConversation(conversationId);
+  if (!persistedSandbox) {
+    const sandbox = await Sandbox.create(template, sandboxOptions);
+    attachSandbox(conversationId, sandbox.sandboxId, template);
+    return sandbox;
+  }
+
+  try {
+    const sandbox = await Sandbox.connect(persistedSandbox.e2b_sandbox_id, {
+      timeoutMs: getTimeoutMs(),
+    });
+    touchSandbox(conversationId);
+    return sandbox;
+  } catch {
+    removeSandbox(conversationId);
+    const sandbox = await Sandbox.create(template, sandboxOptions);
+    attachSandbox(conversationId, sandbox.sandboxId, template);
+    return sandbox;
+  }
 }
 
 export async function POST(request: Request) {
@@ -45,8 +96,8 @@ export async function POST(request: Request) {
     return jsonError("Command is required.");
   }
 
-  const user = getUser(userId);
-  if (!user) {
+  const user = await getSessionUser();
+  if (!user || user.id !== userId) {
     return jsonError("User not found.", 404);
   }
 
@@ -64,47 +115,68 @@ export async function POST(request: Request) {
   };
 
   try {
-    const conversation = conversationId
-      ? getConversation(conversationId)
-      : createConversation(userId);
+    const template = process.env.E2B_TEMPLATE || "base";
 
+    if (!conversationId) {
+      const sandbox = await Sandbox.create(template, sandboxOptions);
+      let result: Awaited<ReturnType<typeof sandbox.commands.run>>;
+      try {
+        result = await sandbox.commands.run(command, {
+          timeoutMs: 60_000,
+        });
+      } catch (error) {
+        await Sandbox.pause(sandbox.sandboxId).catch(() => undefined);
+        throw error;
+      }
+
+      const conversation = createConversation(userId);
+      attachSandbox(conversation.id, sandbox.sandboxId, template);
+      const messages = recordCommand({
+        conversationId: conversation.id,
+        command,
+        sandboxId: sandbox.sandboxId,
+        template,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      });
+
+      return NextResponse.json({
+        conversationId: conversation.id,
+        sandboxId: sandbox.sandboxId,
+        command,
+        result,
+        messages,
+      });
+    }
+
+    const conversation = getConversation(conversationId);
     if (!conversation || conversation.user_id !== userId) {
       return jsonError("Conversation not found.", 404);
     }
 
-    const template = process.env.E2B_TEMPLATE || "base";
-    const persistedSandbox = getSandboxForConversation(conversation.id);
-    const sandbox = persistedSandbox
-      ? await Sandbox.connect(persistedSandbox.e2b_sandbox_id, {
-          timeoutMs: getTimeoutMs(),
-        })
-      : await Sandbox.create(template, sandboxOptions);
+    return await withConversationLock(conversation.id, async () => {
+      const sandbox = await getOrCreateSandbox(conversation.id, template, sandboxOptions);
+      const result = await sandbox.commands.run(command, {
+        timeoutMs: 60_000,
+      });
+      const messages = recordCommand({
+        conversationId: conversation.id,
+        command,
+        sandboxId: sandbox.sandboxId,
+        template,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      });
 
-    if (persistedSandbox) {
-      touchSandbox(conversation.id);
-    } else {
-      attachSandbox(conversation.id, sandbox.sandboxId, template);
-    }
-
-    const result = await sandbox.commands.run(command, {
-      timeoutMs: 60_000,
-    });
-    const messages = recordCommand({
-      conversationId: conversation.id,
-      command,
-      sandboxId: sandbox.sandboxId,
-      template,
-      exitCode: result.exitCode,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    });
-
-    return NextResponse.json({
-      conversationId: conversation.id,
-      sandboxId: sandbox.sandboxId,
-      command,
-      result,
-      messages,
+      return NextResponse.json({
+        conversationId: conversation.id,
+        sandboxId: sandbox.sandboxId,
+        command,
+        result,
+        messages,
+      });
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -39,6 +39,7 @@ E2B_API_URL=https://api.e2b.dev
 E2B_TEMPLATE=base
 E2B_TIMEOUT_MS=300000
 APP_DATABASE_PATH=./data/app.db
+APP_SESSION_SECRET=change-me
 ```
 
 ## How it works

@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import {
   getConversation,
   getSandboxForConversation,
-  getUser,
   markSandboxPaused,
 } from "@/lib/db";
+import { getSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -24,10 +24,10 @@ export async function POST(
   const body = (await request.json()) as { userId?: unknown };
   const userId = typeof body.userId === "string" ? body.userId.trim() : "";
   const { conversationId } = await params;
-  const user = getUser(userId);
+  const user = await getSessionUser();
   const conversation = getConversation(conversationId);
 
-  if (!user || !conversation || conversation.user_id !== user.id) {
+  if (!user || user.id !== userId || !conversation || conversation.user_id !== user.id) {
     return jsonError("Conversation not found.", 404);
   }
 

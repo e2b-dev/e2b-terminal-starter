@@ -4,17 +4,21 @@ import {
   getSandboxForConversation,
   listMessages,
 } from "@/lib/db";
+import { getSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId") || "";
   const { conversationId } = await params;
+  const user = await getSessionUser();
   const conversation = getConversation(conversationId);
 
-  if (!conversation) {
+  if (!user || user.id !== userId || !conversation || conversation.user_id !== user.id) {
     return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
   }
 
