@@ -52,4 +52,6 @@ The app uses a local SQLite database for starter persistence:
 
 The server reads `E2B_API_KEY`, creates or reconnects to the conversation's E2B sandbox, runs the submitted command, and records the command/output in SQLite.
 
+New sandboxes are created with `lifecycle.onTimeout = "pause"` and `lifecycle.autoResume = true`, so idle sandboxes pause instead of being killed and resume when the app reconnects to run another command.
+
 The starter intentionally keeps auth as a local name field. Swap `users` for Clerk, Auth.js, or your own auth provider when you want real accounts.

@@ -52,6 +52,10 @@ export async function POST(request: Request) {
 
   const sandboxOptions = {
     timeoutMs: getTimeoutMs(),
+    lifecycle: {
+      onTimeout: "pause" as const,
+      autoResume: true,
+    },
     metadata: {
       user_id: userId,
       user_name: user.name,
