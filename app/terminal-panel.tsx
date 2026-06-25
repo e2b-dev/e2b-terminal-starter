@@ -134,14 +134,9 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(
         fitAddon.fit();
         terminal.blur();
 
-        const initialTranscript = transcriptRef.current;
         pendingWritesRef.current = "";
-        terminal.write(initialTranscript);
         terminalRef.current = terminal;
-        if (pendingWritesRef.current) {
-          terminal.write(pendingWritesRef.current);
-          pendingWritesRef.current = "";
-        }
+        terminal.write(transcriptRef.current);
       });
     });
 
