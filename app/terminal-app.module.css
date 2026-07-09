@@ -1,0 +1,45 @@
+.shell {
+  display: grid;
+  grid-template-rows: 68px minmax(0, 1fr);
+  min-height: 100dvh;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  padding: 18px;
+}
+
+.terminal {
+  display: grid;
+  grid-template-rows: minmax(320px, 1fr) auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--terminal);
+}
+
+@media (max-width: 780px) {
+  .shell {
+    display: block;
+  }
+
+  .workspace {
+    display: block;
+  }
+
+  .main {
+    min-height: 620px;
+    padding: 12px;
+  }
+}

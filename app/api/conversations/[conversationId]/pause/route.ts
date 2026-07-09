@@ -1,53 +1,58 @@
-import Sandbox from "e2b";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { getE2bConfig } from "@/lib/config";
 import {
   getConversation,
   getSandboxForConversation,
   markSandboxPaused,
 } from "@/lib/db";
-import { getSessionUser } from "@/lib/session";
+import { pauseSandbox } from "@/lib/e2b/sandbox";
+import { jsonError } from "@/lib/http";
+import { withConversationLock } from "@/lib/conversation-lock";
 
 export const runtime = "nodejs";
 
-function jsonError(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
-}
-
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
-  if (!process.env.E2B_API_KEY) {
+  if (!getE2bConfig().apiKey) {
     return jsonError("Missing E2B_API_KEY.", 500);
   }
 
-  const body = (await request.json()) as { userId?: unknown };
-  const userId = typeof body.userId === "string" ? body.userId.trim() : "";
   const { conversationId } = await params;
-  const user = await getSessionUser();
+  const user = await getCurrentUser();
   const conversation = getConversation(conversationId);
 
-  if (!user || user.id !== userId || !conversation || conversation.user_id !== user.id) {
+  if (!user || !conversation || conversation.user_id !== user.id) {
     return jsonError("Conversation not found.", 404);
   }
 
-  const sandbox = getSandboxForConversation(conversationId);
-  if (!sandbox) {
-    return jsonError("Conversation has no sandbox yet.", 409);
-  }
+  return withConversationLock(conversationId, async () => {
+    const sandbox = getSandboxForConversation(conversationId);
+    if (!sandbox) {
+      return jsonError("Conversation has no sandbox yet.", 409);
+    }
 
-  try {
-    await Sandbox.pause(sandbox.e2b_sandbox_id);
-    markSandboxPaused(conversationId);
+    try {
+      await pauseSandbox(sandbox.e2b_sandbox_id);
+      let warning: string | undefined;
+      try {
+        markSandboxPaused(conversationId);
+      } catch {
+        warning = "Sandbox paused, but its local status could not be saved.";
+      }
 
-    return NextResponse.json({
-      sandbox: {
-        ...sandbox,
-        status: "paused",
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return jsonError(message, 500);
-  }
+      return NextResponse.json({
+        sandbox: {
+          ...sandbox,
+          status: "paused",
+        },
+        warning,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return jsonError(message, 500);
+    }
+  });
 }

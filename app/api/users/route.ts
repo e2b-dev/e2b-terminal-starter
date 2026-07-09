@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
+import { setCurrentUser } from "@/lib/auth";
+import { localAuthEnabled } from "@/lib/config";
 import { upsertUser } from "@/lib/db";
-import { setSessionUser } from "@/lib/session";
+import { readJson } from "@/lib/http";
 
 export const runtime = "nodejs";
-
-function localAuthEnabled() {
-  if (process.env.APP_ENABLE_LOCAL_AUTH) {
-    return process.env.APP_ENABLE_LOCAL_AUTH === "true";
-  }
-
-  return process.env.NODE_ENV !== "production";
-}
 
 export async function POST(request: Request) {
   if (!localAuthEnabled()) {
@@ -23,13 +17,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as { name?: unknown };
-  const name = typeof body.name === "string" ? body.name : "";
+  const parsed = await readJson<{ name?: unknown }>(request);
+  if (parsed.error) return parsed.error;
+  const name = typeof parsed.data.name === "string" ? parsed.data.name : "";
 
   try {
     const user = upsertUser(name);
     const response = NextResponse.json({ user });
-    setSessionUser(response, user.id);
+    setCurrentUser(response, user.id);
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
