@@ -1,26 +1,30 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import {
   getConversation,
   getSandboxForConversation,
   listMessages,
+  reconcileExpiredSandboxes,
 } from "@/lib/db";
-import { getSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId") || "";
   const { conversationId } = await params;
-  const user = await getSessionUser();
+  const user = await getCurrentUser();
   const conversation = getConversation(conversationId);
 
-  if (!user || user.id !== userId || !conversation || conversation.user_id !== user.id) {
-    return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+  if (!user || !conversation || conversation.user_id !== user.id) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 },
+    );
   }
+
+  reconcileExpiredSandboxes();
 
   return NextResponse.json({
     conversation,
