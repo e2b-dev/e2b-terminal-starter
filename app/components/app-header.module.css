@@ -4,7 +4,7 @@
   justify-content: space-between;
   gap: 16px;
   min-width: 0;
-  padding: 0 20px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
   background: var(--sidebar);
 }
@@ -12,7 +12,7 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -20,25 +20,20 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: var(--green);
-  color: var(--green-dark);
-  font-size: 13px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #38684b;
+  border-radius: 6px;
+  background: #18221d;
+  color: var(--green);
+  font-size: 11px;
   font-weight: 800;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.25;
-}
-
-.brand p {
-  margin: 3px 0 0;
-  color: var(--muted);
-  font-size: 13px;
 }
 
 .status {
@@ -46,7 +41,7 @@
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
-  padding: 6px 10px;
+  padding: 5px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
@@ -75,11 +70,7 @@
 
 @media (max-width: 780px) {
   .header {
-    min-height: 68px;
-    padding-block: 12px;
-  }
-
-  .brand p {
-    display: none;
+    min-height: 54px;
+    padding-block: 8px;
   }
 }
