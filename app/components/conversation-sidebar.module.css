@@ -2,41 +2,113 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 18px;
+  padding: 14px;
   overflow: hidden;
   border-right: 1px solid var(--line);
   background: var(--sidebar);
 }
 
-.userForm {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 14px;
+.account {
+  position: relative;
+  flex: 0 0 auto;
 }
 
-.userForm label,
-.historyHeading > span {
+.account summary {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.account summary::-webkit-details-marker {
+  display: none;
+}
+
+.account summary:hover {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.account[open] summary {
+  border-color: var(--line);
+  border-radius: 7px 7px 0 0;
+  background: var(--surface);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #1c2b22;
+  color: var(--green);
+}
+
+.accountName {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.accountName small {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 650;
   text-transform: uppercase;
+}
+
+.accountName strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  color: var(--muted);
+  transition: transform 150ms ease;
+}
+
+.account[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.accountPanel {
+  display: grid;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  background: var(--surface);
+}
+
+.userForm {
+  min-width: 0;
 }
 
 .inlineForm {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 6px;
 }
 
 .inlineForm input {
   width: 100%;
   min-width: 0;
-  height: 40px;
-  padding: 0 11px;
+  height: 34px;
+  padding: 0 9px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 6px;
   outline: none;
-  background: var(--surface);
+  background: var(--page);
   color: var(--text);
 }
 
@@ -48,27 +120,16 @@
   justify-content: center;
   gap: 6px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--surface-raised);
   color: var(--text);
   font-weight: 650;
 }
 
 .inlineForm button {
-  height: 40px;
-  padding: 0 12px;
-}
-
-.newButton {
-  height: 30px;
-  padding: 0 9px;
+  height: 34px;
+  padding: 0 10px;
   font-size: 12px;
-}
-
-.pauseButton {
-  width: 30px;
-  height: 30px;
-  padding: 0;
 }
 
 .inlineForm button:hover:not(:disabled),
@@ -80,24 +141,19 @@
 
 .details {
   display: grid;
+  gap: 7px;
   margin: 0;
-  border-block: 1px solid var(--line);
 }
 
 .details div {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr);
   gap: 8px;
-  padding: 9px 0;
-}
-
-.details div + div {
-  border-top: 1px solid #272a31;
 }
 
 .details dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .details dd {
@@ -108,7 +164,7 @@
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     monospace;
-  font-size: 12px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -118,7 +174,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  margin-top: 20px;
+  margin-top: 18px;
 }
 
 .historyHeading {
@@ -126,13 +182,37 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 8px;
+  padding: 0 4px 8px;
+}
+
+.historyHeading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.historyHeading span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.historyHeading small {
+  color: #737986;
+  font-size: 10px;
+}
+
+.newButton {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
 }
 
 .historyList {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 4px;
   min-height: 0;
   padding: 1px;
   overflow-y: auto;
@@ -141,29 +221,29 @@
 .historyItem {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   width: 100%;
-  min-height: 82px;
-  padding: 10px;
+  min-height: 62px;
+  padding: 8px 7px 8px 10px;
   border: 1px solid transparent;
   border-radius: 7px;
-  background: var(--surface);
   color: var(--text);
 }
 
 .historyItem:hover {
   border-color: var(--line);
+  background: var(--surface);
 }
 
 .historyItem.active {
-  border-color: var(--green);
+  border-color: #38684b;
   background: #18221d;
 }
 
 .historySelect {
   display: grid;
-  gap: 5px;
+  gap: 7px;
   min-width: 0;
   padding: 0;
   text-align: left;
@@ -171,38 +251,38 @@
   color: inherit;
 }
 
-.historySelect strong,
-.historySelect small {
+.historySelect strong {
   overflow: hidden;
+  font-size: 13px;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.historySelect strong {
-  font-size: 13px;
-  line-height: 1.3;
-}
-
-.historySelect small {
-  color: var(--muted);
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    monospace;
-  font-size: 11px;
-}
-
-.sandboxStatus {
-  display: inline-flex;
+.sandboxMeta {
+  display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   text-transform: capitalize;
 }
 
+.sandboxMeta code {
+  min-width: 0;
+  overflow: hidden;
+  color: #737986;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .sandboxDot {
-  width: 7px;
-  height: 7px;
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--muted);
 }
@@ -219,10 +299,33 @@
   background: var(--muted);
 }
 
+.pauseButton {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  opacity: 0;
+}
+
+.historyItem:hover .pauseButton,
+.pauseButton:focus-visible {
+  opacity: 1;
+}
+
 .emptyState {
-  margin: 8px 0;
+  margin: 8px 4px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .spin {
@@ -237,18 +340,39 @@
 
 @media (max-width: 780px) {
   .sidebar {
-    max-height: 460px;
+    max-height: 310px;
+    padding: 10px 12px;
     overflow: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
 
+  .history {
+    margin-top: 10px;
+  }
+
   .historyList {
-    max-height: 220px;
+    display: flex;
+    gap: 6px;
+    padding-bottom: 3px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .historyItem {
+    flex: 0 0 220px;
+  }
+
+  .pauseButton {
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+
   .spin {
     animation: none;
   }

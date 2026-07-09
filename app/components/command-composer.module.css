@@ -1,22 +1,46 @@
 .composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border-top: 1px solid var(--line);
   background: var(--surface-raised);
 }
 
+.commandShell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--terminal);
+}
+
+.commandShell:focus-within {
+  border-color: var(--line-strong);
+}
+
+.prompt {
+  margin-right: 9px;
+  color: var(--green);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .command {
   width: 100%;
-  min-height: 46px;
+  min-height: 38px;
   max-height: 180px;
-  padding: 11px 12px;
+  padding: 0;
   resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  border: 0;
   outline: none;
-  background: var(--surface);
+  background: transparent;
   color: var(--text);
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
@@ -29,9 +53,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-width: 108px;
-  border-radius: 7px;
+  gap: 7px;
+  min-width: 88px;
+  padding: 0 14px;
+  border: 1px solid #76dc98;
+  border-radius: 6px;
   background: var(--green);
   color: var(--green-dark);
   font-weight: 750;
@@ -52,12 +78,13 @@
 }
 
 @media (max-width: 780px) {
-  .composer {
-    grid-template-columns: 1fr;
+  .run {
+    min-width: 44px;
+    padding: 0;
   }
 
-  .run {
-    min-height: 44px;
+  .run span {
+    display: none;
   }
 }
 

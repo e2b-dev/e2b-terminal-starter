@@ -39,7 +39,7 @@ export default function TerminalApp() {
               ref={app.terminalRef}
               onReadyChange={setTerminalReady}
               sandboxId={app.activeSandboxId || undefined}
-              template={app.config?.template || "base"}
+              status={app.activeConversation?.sandbox_status || "not-started"}
               title={app.activeConversation?.title || "New conversation"}
             />
             <CommandComposer
@@ -54,6 +54,8 @@ export default function TerminalApp() {
               isRunning={app.isRunning}
               onChange={app.setCommand}
               onRun={app.runCommand}
+              ready={terminalReady}
+              selectionKey={app.activeConversationId}
             />
           </div>
         </section>

@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { Check, Copy, RotateCcw, SquareTerminal } from "lucide-react";
+import type { SandboxStatus } from "@/lib/contracts";
 import styles from "./terminal-panel.module.css";
 
 export type TerminalPanelHandle = {
@@ -15,12 +16,13 @@ export type TerminalPanelHandle = {
   reset: () => void;
 };
 
-const INITIAL_TEXT = "$ Type a command below to run it.\r\n";
+const INITIAL_TEXT = "";
+const HIDE_CURSOR = "\u001b[?25l";
 
 type Props = {
   onReadyChange?: (ready: boolean) => void;
   sandboxId?: string;
-  template?: string;
+  status?: SandboxStatus | "not-started";
   title?: string;
 };
 
@@ -45,7 +47,7 @@ function cancelIdle(handle: IdleHandle) {
 
 const TerminalPanel = forwardRef<TerminalPanelHandle, Props>(
   function TerminalPanel(
-    { onReadyChange, sandboxId, template, title = "Terminal" },
+    { onReadyChange, sandboxId, status = "not-started", title = "Terminal" },
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -65,7 +67,8 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, Props>(
       transcriptRef.current = INITIAL_TEXT;
       terminalRef.current?.reset();
       terminalRef.current?.clear();
-      terminalRef.current?.write(INITIAL_TEXT);
+      terminalRef.current?.write(HIDE_CURSOR);
+      if (INITIAL_TEXT) terminalRef.current?.write(INITIAL_TEXT);
     }
 
     useImperativeHandle(ref, () => ({ write, reset }));
@@ -126,8 +129,8 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, Props>(
               scrollback: 500,
               theme: {
                 background: "#0b0d10",
-                cursor: "#f4f1e8",
-                foreground: "#d6ffe3",
+                cursor: "#61d98d",
+                foreground: "#d8dce3",
                 selectionBackground: "#7dd3fc40",
               },
             });
@@ -137,7 +140,8 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, Props>(
             fitAddon.fit();
             terminal.blur();
             terminalRef.current = terminal;
-            terminal.write(transcriptRef.current);
+            terminal.write(HIDE_CURSOR);
+            if (transcriptRef.current) terminal.write(transcriptRef.current);
             onReadyChange?.(true);
           })
           .catch(() => {
@@ -173,10 +177,11 @@ const TerminalPanel = forwardRef<TerminalPanelHandle, Props>(
               <SquareTerminal size={15} />
             </span>
             <strong>{title}</strong>
-            {template ? <code>{template}</code> : null}
-            {sandboxId ? (
-              <code className={styles.truncate}>{sandboxId}</code>
-            ) : null}
+            <span className={styles.sandboxState} title={sandboxId}>
+              <span className={`${styles.stateDot} ${styles[status]}`} />
+              {status === "not-started" ? "Not started" : status}
+              {sandboxId ? <code>{sandboxId.slice(-8)}</code> : null}
+            </span>
           </div>
           <div className={styles.actions}>
             <button

@@ -219,6 +219,7 @@ export function useTerminalApp() {
     }
 
     commandInFlightRef.current = true;
+    setCommand("");
     setIsRunning(true);
     terminalRef.current?.write(`\r\n$ ${commandToRun}\r\n`);
     try {
